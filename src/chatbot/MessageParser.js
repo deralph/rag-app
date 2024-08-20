@@ -4,7 +4,7 @@ class MessageParser {
   }
 
   parse(message) {
-    console.log(message);
+    // console.log(message);
     this.actionProvider.handleAskQuestion(message);
   }
 }

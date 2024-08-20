@@ -8,13 +8,24 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
   const [disabled, setDisabled] = useState(true);
 
   const handleFileChange = (event) => {
-    setSelectedFile(event.target.files[0]);
+    const file = event.target.files[0];
+    setSelectedFile(file);
+    const maxSizeInMB = 2;
+    const maxSizeInBytes = maxSizeInMB * 1024 * 1024;
+
+    if (file && file.size > maxSizeInBytes) {
+      setUploadStatus(
+        `The file size exceeds ${maxSizeInMB}MB. Please upload a smaller file.`
+      );
+      return;
+    }
+
     setDisabled(false);
   };
 
   const handleFileUpload = async () => {
     setDisabled(true);
-    console.log("in file upload");
+    // console.log("in file upload");
     if (!selectedFile) {
       setUploadStatus("No file selected");
       return;
@@ -24,9 +35,10 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
     formData.append("pdf", selectedFile);
 
     try {
-      console.log("uploading");
+      // console.log("uploading");
+      // "http://127.0.0.1:5000/upload",
       const response = await axios.post(
-        "http://127.0.0.1:5000/upload",
+        "https://rag-app-rwei.onrender.com/upload",
         formData,
         {
           headers: {
@@ -34,8 +46,8 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
           },
         }
       );
-      console.log("uploaded");
-      console.log(response);
+      // console.log("uploaded");
+      // console.log(response);
       setUploadStatus("File uploaded successfully");
       setDisabled(false);
     } catch (error) {

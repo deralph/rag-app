@@ -25,9 +25,13 @@ class ActionProvider {
     }
 
     try {
-      const response = await axios.post("http://127.0.0.1:5000/ask", {
-        question: question,
-      });
+      // "http://127.0.0.1:5000/ask",
+      const response = await axios.post(
+        "https://rag-app-rwei.onrender.com/ask",
+        {
+          question: question,
+        }
+      );
       // setAnswer(response.data.answer);
       const message = this.createChatBotMessage(response.data.answer);
       this.addMessageToState(message);

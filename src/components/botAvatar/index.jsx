@@ -1,7 +1,6 @@
 import React from "react";
 
 const BotAvatar = () => {
-  console.log("avatar open");
   return (
     <div
       style={{
