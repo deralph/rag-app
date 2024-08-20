@@ -11,6 +11,7 @@ function Chat() {
         config={config}
         actionProvider={ActionProvider}
         messageParser={MessageParser}
+        placeholderText={"enter your question here"}
       />
     </div>
   );

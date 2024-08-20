@@ -8,21 +8,22 @@ from chromadb import Documents, EmbeddingFunction, Embeddings
 import chromadb
 from typing import List
 from werkzeug.utils import secure_filename
-from flask_cors import CORS
+from flask_cors import CORS,cross_origin
 from dotenv import load_dotenv
 import shutil
 
 
 app = Flask(__name__)
 # Specify the allowed origins (URLs) here
-allowed_origins = [
-    # "http://example1.com",
-    "https://pdf-assistant.netlify.app/",
-    "http://localhost:5173"
-]
+# allowed_origins = [
+#     # "http://example1.com",
+#     "https://pdf-assistant.netlify.app/",
+#     "http://localhost:5173"
+# ]
 
 # Set up CORS to allow these origins
-CORS(app, resources={r"/*": {"origins": allowed_origins}})
+# CORS(app, resources={r"/*": {"origins": allowed_origins}})
+CORS(app)
 
 # Load environment variables
 load_dotenv()
@@ -95,6 +96,7 @@ def create_chroma_db(documents: List[str], path: str, name: str):
 
 # Endpoint to upload the PDF
 @app.route('/upload', methods=['POST'])
+@cross_origin(origin='*')
 def upload_pdf():
     if 'pdf' not in request.files:
         return jsonify({"error": "No file part"}), 400
@@ -153,6 +155,7 @@ def generate_answer(prompt: str):
 
 # Endpoint to ask questions based on the uploaded PDF
 @app.route('/ask', methods=['POST'])
+@cross_origin(origin='*')
 def ask_question():
     data = request.json
     question = data.get('question', '')

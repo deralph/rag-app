@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import axios from "axios";
 import UploadComponent from "./components/upload";
 import Chat from "./components/chat";
 

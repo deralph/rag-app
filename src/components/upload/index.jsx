@@ -6,6 +6,7 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
   const fileInputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [disabled, setDisabled] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -25,6 +26,7 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
 
   const handleFileUpload = async () => {
     setDisabled(true);
+    setLoading(true);
     // console.log("in file upload");
     if (!selectedFile) {
       setUploadStatus("No file selected");
@@ -50,10 +52,12 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
       // console.log(response);
       setUploadStatus("File uploaded successfully");
       setDisabled(false);
+      setLoading(false);
     } catch (error) {
       setUploadStatus("Error uploading file");
       console.error("Error uploading file:", error);
       setDisabled(false);
+      setLoading(false);
     }
   };
   const handleIconClick = () => {
@@ -65,12 +69,18 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
       <div className="upload-box">
         <p>Upload your files</p>
         <p className="file-types">PDF Only</p>
-        <div className="upload-icon" onClick={handleIconClick}>
-          <img
-            src="https://i.pinimg.com/736x/04/54/7c/04547c2b354abb70a85ed8a2d1b33e5f.jpg"
-            alt="Upload Icon"
-          />
-        </div>
+        {loading ? (
+          <div className="load">
+            <span className="loader"></span>
+          </div>
+        ) : (
+          <div className="upload-icon" onClick={handleIconClick}>
+            <img
+              src="https://i.pinimg.com/736x/04/54/7c/04547c2b354abb70a85ed8a2d1b33e5f.jpg"
+              alt="Upload Icon"
+            />
+          </div>
+        )}
         <input
           type="file"
           ref={fileInputRef}
@@ -81,7 +91,7 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
         <p className="status">{uploadStatus}</p>
         <div className="">
           <button onClick={handleFileUpload} disabled={disabled}>
-            Upload PDF
+            {loading ? "Loading..." : "Upload PDF"}
           </button>
         </div>
       </div>

@@ -17,10 +17,25 @@ class ActionProvider {
   }
 
   handleAskQuestion = async (question) => {
+    // Add a loading message
+    const loadingMessage = this.createChatBotMessage(
+      "Please wait we are fetching your answer",
+      {
+        widget: "loader",
+        loading: true,
+        delay: 0,
+      }
+    );
+
+    this.setState((prevState) => ({
+      ...prevState,
+      messages: [...prevState.messages, loadingMessage],
+    }));
+
     if (!question) {
       // alert("Please enter a question");
-      const message = this.createChatBotMessage("Please ask your question");
-      this.addMessageToState(message);
+      this.handleApiResponse("Please ask your question");
+      // this.addMessageToState(message);
       return;
     }
 
@@ -33,15 +48,30 @@ class ActionProvider {
         }
       );
       // setAnswer(response.data.answer);
-      const message = this.createChatBotMessage(response.data.answer);
-      this.addMessageToState(message);
+      if (response) {
+        this.handleApiResponse(response.data.answer);
+      }
+      // this.addMessageToState(message);
     } catch (error) {
-      const message = this.createChatBotMessage(
-        "An Error occured please try again"
-      );
-      this.addMessageToState(message);
+      this.handleApiResponse("An Error occured please try again");
+      // this.addMessageToState(message);
       console.error("Error asking question:", error);
     }
+  };
+
+  handleApiResponse = (response) => {
+    this.setState((prevState) => {
+      const updatedMessages = prevState.messages.filter(
+        (message) => !message.loading
+      );
+
+      const responseMessage = this.createChatBotMessage(response);
+
+      return {
+        ...prevState,
+        messages: [...updatedMessages, responseMessage],
+      };
+    });
   };
 
   addMessageToState = (message) => {
