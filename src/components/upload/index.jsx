@@ -6,7 +6,6 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
   const fileInputRef = useRef(null);
   const [selectedFile, setSelectedFile] = useState(null);
   const [disabled, setDisabled] = useState(true);
-  console.log(uploadStatus);
 
   const handleFileChange = (event) => {
     setSelectedFile(event.target.files[0]);
