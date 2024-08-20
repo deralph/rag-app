@@ -14,7 +14,15 @@ import shutil
 
 
 app = Flask(__name__)
-CORS(app)
+# Specify the allowed origins (URLs) here
+allowed_origins = [
+    # "http://example1.com",
+    "https://pdf-assistant.netlify.app/",
+    "http://localhost:5173"
+]
+
+# Set up CORS to allow these origins
+CORS(app, resources={r"/*": {"origins": allowed_origins}})
 
 # Load environment variables
 load_dotenv()

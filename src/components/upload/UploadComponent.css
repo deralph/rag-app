@@ -12,7 +12,8 @@
   padding: 40px;
   text-align: center;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  width: 40%;
+  width: 90%;
+  max-width: 600px;
 }
 .upload-box button:disabled {
   background-color: #e1e4ec;
