@@ -8,6 +8,9 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
   const [disabled, setDisabled] = useState(true);
   const [loading, setLoading] = useState(false);
 
+  const user_id = localStorage.getItem("user_id");
+  console.log(user_id);
+
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     setSelectedFile(file);
@@ -34,13 +37,14 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
     }
 
     const formData = new FormData();
+    formData.append("user_id", user_id);
     formData.append("pdf", selectedFile);
 
     try {
       // console.log("uploading");
-      // "http://127.0.0.1:5000/upload",
+      // "https://rag-app-rwei.onrender.com/upload",
       const response = await axios.post(
-        "https://rag-app-rwei.onrender.com/upload",
+        "http://127.0.0.1:5000/upload",
         formData,
         {
           headers: {

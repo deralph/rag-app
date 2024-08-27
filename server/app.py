@@ -4,13 +4,14 @@ import re
 from flask import Flask, request, jsonify, session
 from pypdf import PdfReader
 import google.generativeai as genai
-import pinecone
+from pinecone import Pinecone,ServerlessSpec
 from typing import List
 from werkzeug.utils import secure_filename
 from flask_cors import CORS, cross_origin
 from dotenv import load_dotenv
 
 app = Flask(__name__)
+app.secret_key = os.getenv('APP_SECRET_KEY')
 CORS(app)
 
 # Load environment variables
@@ -28,7 +29,7 @@ except Exception as e:
     print("Failed to configure Gemini API:", str(e))
 
 # Initialize Pinecone client
-pinecone.init(api_key=pinecone_api_key, environment='us-west1-gcp')
+pc=Pinecone(api_key=pinecone_api_key)
 
 UPLOAD_FOLDER = 'uploads/'
 
@@ -72,15 +73,18 @@ def get_embedding(text: str):
 
 # Function to create a Pinecone index
 def create_pinecone_index(index_name: str):
-    if index_name in pinecone.list_indexes():
-        pinecone.delete_index(index_name)
-    pinecone.create_index(index_name, dimension=768)  # Set dimension based on your embedding model
+    if index_name in pc.list_indexes():
+        pc.delete_index(index_name)
+    pc.create_index(index_name, dimension=768,spec=ServerlessSpec(
+        cloud="aws",
+        region="us-east-1"
+    ) )  # Set dimension based on your embedding model
 
 def upsert_documents(index_name: str, documents: List[str]):
-    index = pinecone.Index(index_name)
+    index = pc.Index(index_name)
     embeddings = [get_embedding(doc) for doc in documents]
     ids = [str(i) for i in range(len(documents))]
-    index.upsert(vectors=zip(ids, embeddings))
+    index.upsert(vectors=zip(ids, embeddings),namespace="ns1")
 
 # Endpoint to upload the PDF
 @app.route('/upload', methods=['POST'])
@@ -116,7 +120,7 @@ def upload_pdf():
 
 # Function to retrieve relevant passages based on the query
 def get_relevant_passage(query: str, index_name: str, n_results: int):
-    index = pinecone.Index(index_name)
+    index = pc.Index(index_name)
     query_embedding = get_embedding(query)
     results = index.query(queries=[query_embedding], top_k=n_results)
     return [result.id for result in results.matches]
@@ -161,7 +165,7 @@ def ask_question():
         return jsonify({"error": "No relevant information found"}), 404
 
     # Retrieve the relevant passages
-    index = pinecone.Index(index_name)
+    index = pc.Index(index_name)
     passages = [index.fetch(ids=[id_])['vectors'][id_]['values'] for id_ in relevant_ids]
     final_prompt = make_rag_prompt(question, " ".join(passages))
     answer = generate_answer(final_prompt)
@@ -172,8 +176,10 @@ def ask_question():
 @cross_origin(origin='*')
 def end_session():
     index_name = session.get('index_name')
-    pinecone.delete_index(index_name)
-    session.pop('index_name', None)
+    if index_name:
+        if index_name in pc.list_indexes():
+            pc.delete_index(index_name)
+        session.pop('index_name', None)
     return jsonify({"status": "Session ended"})
 
 if __name__ == '__main__':

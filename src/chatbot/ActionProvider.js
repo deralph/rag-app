@@ -1,4 +1,5 @@
 import axios from "axios";
+import Loader from "../components/loader";
 
 class ActionProvider {
   constructor(
@@ -17,21 +18,11 @@ class ActionProvider {
   }
 
   handleAskQuestion = async (question) => {
-    // Add a loading message
-    const loadingMessage = this.createChatBotMessage(
-      "Please wait we are fetching your answer",
-      {
-        widget: "loader",
-        loading: true,
-        delay: 0,
-      }
-    );
+    const loadingMessage = this.createChatBotMessage(<Loader />, {
+      option: { delay: 0 },
+    });
 
-    this.setState((prevState) => ({
-      ...prevState,
-      messages: [...prevState.messages, loadingMessage],
-    }));
-
+    this.addMessageToState(loadingMessage);
     if (!question) {
       // alert("Please enter a question");
       this.handleApiResponse("Please ask your question");
@@ -40,21 +31,21 @@ class ActionProvider {
     }
 
     try {
-      // "http://127.0.0.1:5000/ask",
-      const response = await axios.post(
-        "https://rag-app-rwei.onrender.com/ask",
-        {
-          question: question,
-        }
-      );
+      // "https://rag-app-rwei.onrender.com/ask",
+      const response = await axios.post("http://127.0.0.1:5000/ask", {
+        question: question,
+        user_id: localStorage.getItem("user_id"),
+      });
       // setAnswer(response.data.answer);
       if (response) {
         this.handleApiResponse(response.data.answer);
       }
+      console.log(this.stateRef);
       // this.addMessageToState(message);
     } catch (error) {
       this.handleApiResponse("An Error occured please try again");
       // this.addMessageToState(message);
+      console.log(this.stateRef);
       console.error("Error asking question:", error);
     }
   };
@@ -62,7 +53,7 @@ class ActionProvider {
   handleApiResponse = (response) => {
     this.setState((prevState) => {
       const updatedMessages = prevState.messages.filter(
-        (message) => !message.loading
+        (msg) => typeof msg.message === "string"
       );
 
       const responseMessage = this.createChatBotMessage(response);
