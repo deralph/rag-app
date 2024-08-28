@@ -8,7 +8,10 @@ function UploadPDF() {
     const resetSession = async () => {
       const user_id = localStorage.getItem("user_id");
       try {
-        const result = await axios.post("http://127.0.0.1:5000/end_session", {
+        const url = "https://rag-app-rwei.onrender.com/end_session";
+        // const testUrl = "http://127.0.0.1:5000/end_session";
+
+        const result = await axios.post(url, {
           user_id: user_id,
         });
         console.log(result.data.status);

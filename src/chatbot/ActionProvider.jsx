@@ -31,8 +31,9 @@ class ActionProvider {
     }
 
     try {
-      // "https://rag-app-rwei.onrender.com/ask",
-      const response = await axios.post("http://127.0.0.1:5000/ask", {
+      const url = "https://rag-app-rwei.onrender.com/ask";
+      // const testUrl = "http://127.0.0.1:5000/ask";
+      const response = await axios.post(url, {
         question: question,
         user_id: localStorage.getItem("user_id"),
       });

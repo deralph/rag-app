@@ -41,17 +41,13 @@ function UploadComponent({ setUploadStatus, uploadStatus }) {
     formData.append("pdf", selectedFile);
 
     try {
-      // console.log("uploading");
-      // "https://rag-app-rwei.onrender.com/upload",
-      const response = await axios.post(
-        "http://127.0.0.1:5000/upload",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      const url = "https://rag-app-rwei.onrender.com/upload";
+      // const testUrl = "http://127.0.0.1:5000/upload";
+      const response = await axios.post(url, formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
       // console.log("uploaded");
       // console.log(response);
       setUploadStatus("File uploaded successfully");
