@@ -5,7 +5,6 @@ import axios from "axios";
 
 function UploadPDF() {
   useEffect(() => {
-    // Example useEffect to reset the session
     const resetSession = async () => {
       const user_id = localStorage.getItem("user_id");
       try {
@@ -17,7 +16,7 @@ function UploadPDF() {
           const newUserId = Math.round(Date.now() * Math.random());
           localStorage.setItem("user_id", newUserId);
         }
-
+        setUploadStatus(" ");
         console.log(" user_id generated:", user_id);
       } catch (error) {
         console.error("Error resetting session:", error);
@@ -40,7 +39,6 @@ function UploadPDF() {
           uploadStatus={uploadStatus}
         />
       )}
-      <Chat />
     </div>
   );
 }

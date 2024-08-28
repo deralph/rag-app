@@ -1,180 +1,176 @@
 import os
-import shutil
-import re
 from flask import Flask, request, jsonify, session
-from pypdf import PdfReader
-import google.generativeai as genai
-import pinecone
-from typing import List
-from werkzeug.utils import secure_filename
+from pinecone import Pinecone, ServerlessSpec
+from llama_index.llms.gemini import Gemini
+from llama_index.vector_stores.pinecone import PineconeVectorStore
+from llama_index.embeddings.gemini import GeminiEmbedding
+from llama_index.core import StorageContext, VectorStoreIndex,Settings
 from flask_cors import CORS, cross_origin
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+import shutil
+from llama_index.readers.file import PDFReader
 
+
+
+# Initialize Flask app
 app = Flask(__name__)
+app.secret_key = "your_secret_key"
 CORS(app)
 
-# Load environment variables
 load_dotenv()
 gemini_api_key = os.getenv("GEMINI_API_KEY")
 pinecone_api_key = os.getenv("PINECONE_API_KEY")
-if not gemini_api_key or not pinecone_api_key:
-    raise ValueError("API Keys not provided. Please provide valid GEMINI_API_KEY and PINECONE_API_KEY.")
 
-# Configure the Gemini API
-try:
-    genai.configure(api_key=gemini_api_key)
-    print("Gemini API configured successfully with the provided key.")
-except Exception as e:
-    print("Failed to configure Gemini API:", str(e))
 
-# Initialize Pinecone client
-pinecone.init(api_key=pinecone_api_key, environment='us-west1-gcp')
+# pinecone_client=Pinecone(api_key=pinecone_api_key, environment=pinecone_env)
+pinecone_client=Pinecone(api_key=pinecone_api_key)
+print("Pinecone initialized successfully.")
+
+def list_index():
+    index_data = pinecone_client.list_indexes()
+    # Extract the names of the indexes
+    index_names = [index['name'] for index in index_data]
+    return index_names
+        
+
+# Initialize LLM and embedding model
+llm = Gemini()
+embed_model = GeminiEmbedding(model_name="models/embedding-001")
+
+
+def create_pinecone_index(index_name):
+    try:
+        if index_name in list_index():
+            pinecone_client.delete_index(index_name)
+        pinecone_client.create_index(index_name, dimension=768,spec=ServerlessSpec(
+            cloud="aws",
+            region="us-east-1"
+        ) )  
+
+        index = pinecone_client.Index(index_name)
+        return index
+    except Exception as e:
+        print(f"Failed to create or load Pinecone index '{index_name}': {str(e)}")
+        return None
 
 UPLOAD_FOLDER = 'uploads/'
-
-# Check if the folder exists
 if os.path.exists(UPLOAD_FOLDER):
-    # If it exists, delete it
     shutil.rmtree(UPLOAD_FOLDER)
-    print(f"Directory '{UPLOAD_FOLDER}' has been deleted.")
-else:
-    print(f"Directory '{UPLOAD_FOLDER}' does not exist.")
-
-# Create the folder
+print(f"Directory '{UPLOAD_FOLDER}' has been deleted.")
 os.makedirs(UPLOAD_FOLDER)
 print(f"Directory '{UPLOAD_FOLDER}' has been created.")
-
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-pinecone_index_prefix = "pdf_index"
 
-# Function to load the PDF and extract text
-def load_pdf(file_path):
-    reader = PdfReader(file_path)
-    text = ""
-    for page in reader.pages:
-        page_text = page.extract_text()
-        if page_text:
-            text += page_text
-    return text
+embed_model = GeminiEmbedding(model_name="models/embedding-001")
 
-# Split the text into chunks based on double newlines
-def split_text(text):
-    return [i for i in re.split('\n\n', text) if i.strip()]
+Settings.llm = llm
+Settings.embed_model = embed_model
+Settings.chunk_size = 512
 
-# Custom embedding function using Gemini API
-def get_embedding(text: str):
-    genai.configure(api_key=gemini_api_key)
-    model = "models/embedding-001"
-    title = "Custom query"
-    response = genai.embed_content(model=model, content=text, task_type="retrieval_document", title=title)
-    return response["embedding"]
 
-# Function to create a Pinecone index
-def create_pinecone_index(index_name: str):
-    if index_name in pinecone.list_indexes():
-        pinecone.delete_index(index_name)
-    pinecone.create_index(index_name, dimension=768)  # Set dimension based on your embedding model
-
-def upsert_documents(index_name: str, documents: List[str]):
-    index = pinecone.Index(index_name)
-    embeddings = [get_embedding(doc) for doc in documents]
-    ids = [str(i) for i in range(len(documents))]
-    index.upsert(vectors=zip(ids, embeddings))
-
-# Endpoint to upload the PDF
 @app.route('/upload', methods=['POST'])
 @cross_origin(origin='*')
+
 def upload_pdf():
+    # Retrieve file from the request
+    pdf_file = request.files['pdf']
+    user_id = request.form.get('user_id')
+
+    if not user_id:
+        return jsonify({"error": "No user_id provided"}), 400
     if 'pdf' not in request.files:
         return jsonify({"error": "No file part"}), 400
 
-    file = request.files['pdf']
-    if file.filename == '':
+    if pdf_file.filename == '':
         return jsonify({"error": "No selected file"}), 400
 
-    if file:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
+    filename = secure_filename(pdf_file.filename)
+    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    pdf_file.save(filepath)
 
-        # Load and process the PDF
-        pdf_text = load_pdf(filepath)
-        chunked_text = split_text(pdf_text)
+    # Load the PDF document using PDFReader
+    loader = PDFReader()
+    documents  = loader.load_data(file=filepath)
 
-        # Create a new Pinecone index for the user
-        index_name = f"{pinecone_index_prefix}_{filename.split('.')[0]}"
-        create_pinecone_index(index_name)
-        upsert_documents(index_name, chunked_text)
 
-        # Store index name in session
-        session['index_name'] = index_name
 
-        return jsonify({"message": "PDF processed successfully"}), 200
-    else:
-        return jsonify({"error": "File upload failed"}), 500
+    index_name = f"rag-experiment-{user_id}"
 
-# Function to retrieve relevant passages based on the query
-def get_relevant_passage(query: str, index_name: str, n_results: int):
-    index = pinecone.Index(index_name)
-    query_embedding = get_embedding(query)
-    results = index.query(queries=[query_embedding], top_k=n_results)
-    return [result.id for result in results.matches]
+    pinecone_index = create_pinecone_index(index_name)
 
-# Construct a prompt for the generation model based on the query and retrieved data
-def make_rag_prompt(query: str, relevant_passage: str):
-    escaped_passage = relevant_passage.replace("'", "").replace('"', "").replace("\n", " ")
-    prompt = f"""You are a helpful and informative bot that answers questions using text from the reference passage included below.
-Be sure to respond in a complete sentence, being comprehensive, including all relevant background information.
-However, you are talking to a non-technical audience, so be sure to break down complicated concepts and
-strike a friendly and conversational tone.
-QUESTION: '{query}'
-PASSAGE: '{escaped_passage}'
+    # Create a PineconeVectorStore
+    vector_store = PineconeVectorStore(pinecone_index=pinecone_index)
 
-ANSWER:
-"""
-    return prompt
+    # Create a StorageContext
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
-# Function to generate an answer using the Gemini API
-def generate_answer(prompt: str):
-    genai.configure(api_key=gemini_api_key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    result = model.generate_content(prompt)
-    return result.text
+    # Index the documents
+    index = VectorStoreIndex.from_documents(
+        documents,
+        storage_context=storage_context
+    )
 
-# Endpoint to ask questions based on the uploaded PDF
+
+   
+    return jsonify({"message": "PDF uploaded and indexed successfully"}), 200
+
 @app.route('/ask', methods=['POST'])
 @cross_origin(origin='*')
+
 def ask_question():
-    data = request.json
-    question = data.get('question', '')
+    # Retrieve question from the request
+    question = request.json['question']
+    user_id = request.json.get('user_id', '')
+    index_name = f"rag-experiment-{user_id}"
+    
+    
+    # Reinitialize the Pinecone index and vector store using the index name
+    pinecone_index = pinecone_client.Index(index_name)
+    if not pinecone_index:
+        return jsonify({"error": "Index not found. Please upload a PDF first."}), 400
 
-    if not question:
-        return jsonify({"error": "No question provided"}), 400
+    vector_store = PineconeVectorStore(pinecone_index=pinecone_index)
 
-    index_name = session.get('index_name')
-    if not index_name:
-        return jsonify({"error": "Session expired or invalid"}), 401
+    # Reinitialize the storage context
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
-    relevant_ids = get_relevant_passage(question, index_name, n_results=1)
-    if not relevant_ids:
-        return jsonify({"error": "No relevant information found"}), 404
+    # Reinitialize the index
+    index = VectorStoreIndex.from_vector_store(vector_store=vector_store)
 
-    # Retrieve the relevant passages
-    index = pinecone.Index(index_name)
-    passages = [index.fetch(ids=[id_])['vectors'][id_]['values'] for id_ in relevant_ids]
-    final_prompt = make_rag_prompt(question, " ".join(passages))
-    answer = generate_answer(final_prompt)
+    # Create a query engine
+    query_engine = index.as_query_engine()
 
-    return jsonify({"answer": answer}), 200
+    # Query the index using the provided question
+    gemini_response = query_engine.query(question)
+
+    return jsonify({"answer": str(gemini_response)}), 200
+
 
 @app.route('/end_session', methods=['POST'])
 @cross_origin(origin='*')
 def end_session():
-    index_name = session.get('index_name')
-    pinecone.delete_index(index_name)
-    session.pop('index_name', None)
-    return jsonify({"status": "Session ended"})
+    user_id = request.json.get('user_id', '')
+    index_name = f"rag-experiment-{user_id}"
+    if index_name:
+        if index_name in list_index():
+            try:
+                pinecone_client.delete_index(index_name)
+                return jsonify({"status": "Session ended"})
+
+            except Exception as e:
+                print(f"An error occurred while deleting the index: {str(e)}")
+                return jsonify({"error": "Failed to delete the index"}), 500
+            
+        else:
+                return jsonify({"status": "Session ended no currrnt index"})
+
+
+
+        # session.pop('index_name', None)
+
+
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
