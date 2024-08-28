@@ -47,14 +47,14 @@
   justify-content: space-between !important;
   align-items: center;
   border-radius: 30px;
-  padding: 0 30px;
+  padding: 10px 30px;
   background: #fff;
 }
 .react-chatbot-kit-chat-input:focus {
   outline: none;
 }
 .react-chatbot-kit-chat-input {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 500;
   border: none;
   width: 80%;
@@ -67,7 +67,7 @@
 }
 .react-chatbot-kit-chat-btn-send svg {
   /* font-size: 12px; */
-  transform: scale(0.5);
+  transform: scale(0.8);
   fill: blue;
 }
 .react-chatbot-kit-chat-bot-message {
