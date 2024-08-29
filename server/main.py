@@ -111,6 +111,7 @@ def upload_pdf():
         documents,
         storage_context=storage_context
     )
+    shutil.rmtree(UPLOAD_FOLDER)
 
 
    
