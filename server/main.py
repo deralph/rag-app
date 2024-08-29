@@ -1,3 +1,7 @@
+import eventlet
+eventlet.monkey_patch()
+
+
 import os
 from flask import Flask, request, jsonify, session
 from pinecone import Pinecone, ServerlessSpec
